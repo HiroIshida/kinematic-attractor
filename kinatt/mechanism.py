@@ -55,7 +55,7 @@ class Mechanism(object):
                 with_rot=with_rot, with_base=with_base, with_jacobian=with_jacobian)
         return P, J
 
-    def collision_forward_kinematics(self, joint_angles, with_baes=False, with_jacobian=False):
+    def collision_forward_kinematics(self, joint_angles, with_base=False, with_jacobian=False):
         return self._forward_kinematics(joint_angles, self.sphere_ids,
                 with_base=with_base, with_jacobian=with_jacobian)
 
