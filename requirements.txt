@@ -1,0 +1,3 @@
+scikit-robot>=0.0.11
+numpy>=1.16.0
+tinyfk>=0.3.6
