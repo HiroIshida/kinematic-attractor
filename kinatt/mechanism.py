@@ -40,16 +40,16 @@ class Mechanism(object):
         sphere_ids = self.fksolver.get_link_ids(sphere_name_list)
         return sphere_ids, np.array(radius_list)
 
-    def forward_kinematics(joint_angles, link_names,
+    def forward_kinematics(self, joint_angles, link_names,
             with_rot=False, with_base=False, with_jacobian=False):
         link_names = listify(link_names)
         link_ids = self.fksolver.get_link_ids(link_names)
         return self._forward_kinematics(joint_angles, link_ids, 
                 with_base=with_base, with_jacobian=with_jacobian)
 
-    def _forward_kinematics(joint_angles, link_ids,
+    def _forward_kinematics(self, joint_angles, link_ids,
             with_rot=False, with_base=False, with_jacobian=False):
-        P, J = fksolver.solve_forward_kinematics(
+        P, J = self.fksolver.solve_forward_kinematics(
                 [joint_angles], link_ids, self.joint_ids, 
                 with_rot=with_rot, with_base=with_base, with_jacobian=with_jacobian)
         return P, J

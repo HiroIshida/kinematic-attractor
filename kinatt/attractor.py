@@ -1,3 +1,4 @@
+import numpy as np
 from utils import listify
 
 class Constraint(object):
@@ -10,9 +11,9 @@ class Constraint(object):
             self.check()
 
     def check(self):
-        f, jac = self.fun(np.zeros(n_state))
-        assert f.shape == (m,) 
-        assert jac.shape == (m, n)
+        f, jac = self.fun(np.zeros(self.n_state))
+        assert f.shape == (self.m_constraint,) 
+        assert jac.shape == (self.m_constraint, self.n_state)
 
     def export_scipy(self):
         closure_member = {'jac_cache': None}
@@ -57,8 +58,9 @@ class ObjectiveFunction(object):
             self.check()
 
     def check(self):
-        ret = self.fun(np.zeros(self.n_state))
-        assert isinstance(ret, float)
+        f, grad = self.fun(np.zeros(self.n_state))
+        assert isinstance(f, float)
+        assert grad.shape == (self.n_state,)
 
     @classmethod
     def from_constraint(cls, constraint, weights=None):
@@ -66,9 +68,9 @@ class ObjectiveFunction(object):
             weights = np.ones(constraint.m_constraint)
 
         def fun(joint_angles):
-            f, jac = constraint.fun(angles)
+            f, jac = constraint.fun(joint_angles)
             cost = np.sum((f * weights)**2) # (f w )^T (f w)
-            grad = 2 * (weights ** 2) * f
+            grad = (2 * (weights ** 2) * f).dot(jac)
             return cost, grad
 
         return cls(fun, constraint.n_state)
@@ -91,17 +93,17 @@ class PoseConstraint(Constraint):
     def __init__(self, mechanism, link_name, pose_desired, with_base=False):
 
         with_rot = (len(pose_desired) != 3)
-        link_ids = mechanism.fksolver.get_link_ids([link_names])
+        link_ids = mechanism.fksolver.get_link_ids([link_name])
         n_state = mechanism.dof + with_base * 3
         m_constraint = len(pose_desired)
 
         def fun(joint_angles):
             P, J = mechanism._forward_kinematics(joint_angles, link_ids,
-                    with_rot, with_base, with_jacobian=True)
+                    with_rot=with_rot, with_base=with_base, with_jacobian=True)
             diff = P[0] - pose_desired
             return diff, J
 
-        super(Constraint, self).__init__(
+        super(PoseConstraint, self).__init__(
                 fun, n_state, m_constraint, True, with_check=True)
 
 """
