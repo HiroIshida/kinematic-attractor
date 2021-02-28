@@ -1,4 +1,5 @@
 import uuid
+import numpy as np
 from skrobot.models import PR2
 from skrobot.planner.swept_sphere import compute_swept_sphere
 import tinyfk
@@ -27,17 +28,17 @@ class Mechanism(object):
         radius_list = []
         for col_link_name in col_link_names:
             coll_link_id = self.fksolver.get_link_ids([col_link_name])[0]
-            col_mesh = robot_model[col_link_name].collision_mesh
+            col_mesh = robot_model.__dict__[col_link_name].collision_mesh
             centers, R = compute_swept_sphere(col_mesh)
 
-            radius_list.extend([R]*len(centers))
+            radius_list.extend([R for _ in range(len(centers))])
             for center in centers:
                 sphere_name = str(uuid.uuid1())
                 self.fksolver.add_new_link(sphere_name, coll_link_id, center)
                 sphere_name_list.append(sphere_name)
 
         sphere_ids = self.fksolver.get_link_ids(sphere_name_list)
-        return sphere_ids, radius_list
+        return sphere_ids, np.array(radius_list)
 
     def forward_kinematics(joint_angles, link_names,
             with_rot=False, with_base=False, with_jacobian=False):
@@ -62,14 +63,14 @@ def create_pr2_mechanism():
     fksolver = tinyfk.RobotModel(robot_model.urdf_path)
 
     joint_names = [
-            "r_shoulder_pan_link", "r_shoulder_lift_link",
-            "r_upper_arm_roll_link", "r_elbow_flex_link",
-            "r_forearm_roll_link", "r_wrist_flex_link",
-            "r_wrist_roll_link",
-            "l_shoulder_pan_link", "l_shoulder_lift_link",
-            "l_upper_arm_roll_link", "l_elbow_flex_link",
-            "l_forearm_roll_link", "l_wrist_flex_link",
-            "l_wrist_roll_link"
+            "r_shoulder_pan_joint", "r_shoulder_lift_joint",
+            "r_upper_arm_roll_joint", "r_elbow_flex_joint",
+            "r_forearm_roll_joint", "r_wrist_flex_joint",
+            "r_wrist_roll_joint",
+            "l_shoulder_pan_joint", "l_shoulder_lift_joint",
+            "l_upper_arm_roll_joint", "l_elbow_flex_joint",
+            "l_forearm_roll_joint", "l_wrist_flex_joint",
+            "l_wrist_roll_joint"
             ]
     col_link_names = [
             "head_tilt_link",
@@ -80,6 +81,4 @@ def create_pr2_mechanism():
             "l_upper_arm_link", "l_forearm_link",
             "l_gripper_palm_link"
             ]
-    super(MechanismPR2, self).__init__(
-            te
-            robot_model, fksolver, joint_names, col_link_names)
+    return Mechanism(robot_model, fksolver, joint_names, col_link_names)
