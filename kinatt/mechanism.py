@@ -13,6 +13,7 @@ class Mechanism(object):
         """
         self.dof = len(joint_names)
         self.fksolver = fksolver
+        self.joint_names = joint_names
         self.joint_ids = self.fksolver.get_joint_ids(joint_names)
         self.col_link_ids = self.fksolver.get_link_ids(col_link_names)
 

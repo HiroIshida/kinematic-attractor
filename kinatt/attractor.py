@@ -1,5 +1,7 @@
 import numpy as np
+import scipy
 from utils import listify
+from utils import scipinize
 
 class Constraint(object):
     def __init__(self, fun, n_state, m_constraint, is_equality, with_check=True):
@@ -16,17 +18,7 @@ class Constraint(object):
         assert jac.shape == (self.m_constraint, self.n_state)
 
     def export_scipy(self):
-        closure_member = {'jac_cache': None}
-
-        def fun_scipinized(x):
-            f, jac = self.fun(x)
-            closure_member['jac_cache'] = jac
-            return f
-
-        def fun_scipinized_jac(x):
-            return closure_member['jac_cache']
-
-        return fun_scipinized, fun_scipinized_jac
+        return scipinize(self.fun)
 
     @classmethod
     def from_constraint_list(cls, constraint_list):
@@ -75,6 +67,10 @@ class ObjectiveFunction(object):
 
         return cls(fun, constraint.n_state)
 
+    def export_scipy(self):
+        scifun, scijac = scipinize(self.fun)
+        return scifun, scijac
+
     """
     @classmethod
     def from_constraint_list(cls, constraint_list, weights_list=None):
@@ -106,24 +102,16 @@ class PoseConstraint(Constraint):
         super(PoseConstraint, self).__init__(
                 fun, n_state, m_constraint, True, with_check=True)
 
-"""
-class StaticCollisionConstraint(Constraint):
-    def __init__(self, mechanism, signed_distance_function):
+class Attractor(object):
+    def __init__(self, objective_function):
+        self.objective_function = objective_function
 
-        def fun(joint_angles):
-            P, J = mechanism._forward_kinematics(joint_angles, link_ids,
-                    with_rot, with_base, with_jacobian=True)
-"""
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def propagate(self, joint_angles, maxiter=10):
+        slsqp_option = {'ftol': 1e-6, 'disp': True, 'maxiter': maxiter}
+        scifun, scijac = self.objective_function.export_scipy()
+        res = scipy.optimize.minimize(
+            scifun, joint_angles, method='SLSQP', jac=scijac,
+            options=slsqp_option, 
+            )
+        joint_angles_next = res.x
+        return joint_angles_next
