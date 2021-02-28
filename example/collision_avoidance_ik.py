@@ -23,7 +23,7 @@ viewer.add(robot)
 viewer.show()
 joint_angles = np.zeros(14)
 for i in range(100):
-    joint_angles = attractor.propagate(joint_angles)
+    joint_angles = attractor.propagate(joint_angles, radius=0.2)
     set_robot_config(robot, joint_list, joint_angles, with_base=with_base)
     viewer.redraw()
     time.sleep(0.1)

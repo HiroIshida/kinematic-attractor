@@ -18,7 +18,10 @@ class Constraint(object):
         assert jac.shape == (self.m_constraint, self.n_state)
 
     def export_scipy(self):
-        return scipinize(self.fun)
+        scifun, scijac = scipinize(self.fun)
+        ineq_dict = {'type': 'ineq', 'fun': scifun,
+                     'jac': scijac}
+        return ineq_dict
 
     @classmethod
     def from_constraint_list(cls, constraint_list):
@@ -71,19 +74,21 @@ class ObjectiveFunction(object):
         scifun, scijac = scipinize(self.fun)
         return scifun, scijac
 
-    """
-    @classmethod
-    def from_constraint_list(cls, constraint_list, weights_list=None):
-        is_all_equality = np.all([e.is_equality for e in  constraint_list])
-        assert is_all_equality
 
-        if weights_list is None:
-            weights_list = [np.ones(e.m_constraint) for e in constraint_list
-        if weights is None:
-            weights = ones(len(constraint_list))
-        assert len(weights) == len(constraint_list)
-    """
+class StepConstraint(Constraint):
+    def __init__(self, joint_angle_init, radius):
+        n_state = len(joint_angle_init)
+        m_constraint = 1
 
+        def fun(joint_angles):
+            diff = joint_angles - joint_angle_init
+            sqdist = np.linalg.norm(diff)**2 - radius**2
+            grad = 2 * diff
+            return -np.array([sqdist]), -np.array([grad])
+
+        is_equality = False
+        super(StepConstraint, self).__init__(
+                fun, n_state, m_constraint, is_equality, with_check=True)
 
 class PoseConstraint(Constraint):
     def __init__(self, mechanism, link_name, pose_desired, with_base=False):
@@ -106,11 +111,16 @@ class Attractor(object):
     def __init__(self, objective_function):
         self.objective_function = objective_function
 
-    def propagate(self, joint_angles, maxiter=10):
+    def propagate(self, joint_angles, maxiter=10, radius=0.1):
         slsqp_option = {'ftol': 1e-6, 'disp': True, 'maxiter': maxiter}
+
+        step_const = StepConstraint(joint_angles, radius)
+        ineq_dict = step_const.export_scipy()
+
         scifun, scijac = self.objective_function.export_scipy()
         res = scipy.optimize.minimize(
             scifun, joint_angles, method='SLSQP', jac=scijac,
+            constraints=[ineq_dict],
             options=slsqp_option, 
             )
         joint_angles_next = res.x
