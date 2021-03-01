@@ -5,7 +5,7 @@ import scipy
 from utils import listify
 from utils import scipinize
 
-class Constraint(object):
+class WaypointConstraint(object):
     def __init__(self, fun, n_state, m_constraint, is_equality, name, with_check=True):
         self.name = name
         self.is_equality = is_equality
@@ -86,7 +86,7 @@ class ObjectiveFunction(object):
         return scifun, scijac
 
 
-class StepConstraint(Constraint):
+class StepConstraint(WaypointConstraint):
     def __init__(self, joint_angle_init, radius, name=None):
         if name is None:
             name = "step_cstr-{0}".format(str(uuid.uuid1()))
@@ -104,7 +104,7 @@ class StepConstraint(Constraint):
         super(StepConstraint, self).__init__(
                 fun, n_state, m_constraint, is_equality, name, with_check=True)
 
-class PoseConstraint(Constraint):
+class PoseConstraint(WaypointConstraint):
     def __init__(self, mechanism, link_name, pose_desired, with_base=False, name=None):
         if name is None:
             name = "pose_cstr-{0}".format(str(uuid.uuid1()))
@@ -124,7 +124,7 @@ class PoseConstraint(Constraint):
         super(PoseConstraint, self).__init__(
                 fun, n_state, m_constraint, is_equality, name, with_check=True)
 
-class CollisionConstraint(Constraint):
+class CollisionConstraint(WaypointConstraint):
     def __init__(self, mechanism, static_sdf, with_base=False, name=None):
         if name is None:
             name = "coll_cstr-{0}".format(str(uuid.uuid1()))
@@ -167,7 +167,7 @@ class Attractor(object):
         slsqp_option = {'ftol': 1e-6, 'disp': True, 'maxiter': maxiter}
 
         step_const = StepConstraint(joint_angles, radius)
-        ineq_whole = Constraint.from_constraint_list([step_const, self.ineq_constraint])
+        ineq_whole = WaypointConstraint.from_constraint_list([step_const, self.ineq_constraint])
         ineq_dict = ineq_whole.export_scipy()
 
         scifun, scijac = self.objective_function.export_scipy()
