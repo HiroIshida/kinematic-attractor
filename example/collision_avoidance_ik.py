@@ -29,7 +29,7 @@ joint_list = [robot.__dict__[name] for name in mech.joint_names]
 viewer.add(robot)
 viewer.add(table)
 viewer.show()
-joint_angles = np.zeros(14)
+joint_angles = np.zeros(17)
 for i in range(200):
     joint_angles = attractor.propagate(joint_angles, radius=0.02)
     set_robot_config(robot, joint_list, joint_angles, with_base=with_base)

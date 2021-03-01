@@ -1,3 +1,4 @@
+import uuid
 import copy
 import numpy as np
 import scipy
@@ -5,7 +6,8 @@ from utils import listify
 from utils import scipinize
 
 class Constraint(object):
-    def __init__(self, fun, n_state, m_constraint, is_equality, with_check=True):
+    def __init__(self, fun, n_state, m_constraint, is_equality, name, with_check=True):
+        self.name = name
         self.is_equality = is_equality
         self.n_state = n_state
         self.m_constraint = m_constraint
@@ -24,6 +26,10 @@ class Constraint(object):
         dic = {'type': cstr_type, 'fun': scifun,
                      'jac': scijac}
         return dic
+
+    def info_str(self):
+        return "name : {0}\n n_state : {1} \n m_state {2}\n".format(
+                self.name, self.n_state, self.m_constraint)
 
     @classmethod
     def from_constraint_list(cls, constraint_list):
@@ -46,8 +52,9 @@ class Constraint(object):
             jacs_combined = np.vstack(jacs)
             return f_combined, jacs_combined
 
+        name = "combined_cstr"
         return cls(fun_combined_constraint, constraint_list[0].n_state, m_constraint_combined,
-                constraint_list[0].is_equality)
+                constraint_list[0].is_equality, name)
 
 class ObjectiveFunction(object):
     def __init__(self, fun, n_state, with_check=True):
@@ -80,7 +87,10 @@ class ObjectiveFunction(object):
 
 
 class StepConstraint(Constraint):
-    def __init__(self, joint_angle_init, radius):
+    def __init__(self, joint_angle_init, radius, name=None):
+        if name is None:
+            name = "step_cstr-{0}".format(str(uuid.uuid1()))
+
         n_state = len(joint_angle_init)
         m_constraint = 1
 
@@ -92,10 +102,12 @@ class StepConstraint(Constraint):
 
         is_equality = False
         super(StepConstraint, self).__init__(
-                fun, n_state, m_constraint, is_equality, with_check=True)
+                fun, n_state, m_constraint, is_equality, name, with_check=True)
 
 class PoseConstraint(Constraint):
-    def __init__(self, mechanism, link_name, pose_desired, with_base=False):
+    def __init__(self, mechanism, link_name, pose_desired, with_base=False, name=None):
+        if name is None:
+            name = "pose_cstr-{0}".format(str(uuid.uuid1()))
 
         with_rot = (len(pose_desired) != 3)
         link_ids = mechanism.fksolver.get_link_ids([link_name])
@@ -106,15 +118,17 @@ class PoseConstraint(Constraint):
             P, J = mechanism._forward_kinematics(joint_angles, link_ids,
                     with_rot=with_rot, with_base=with_base, with_jacobian=True)
             diff = P[0] - pose_desired
-            print("debug pose")
-            print(diff)
             return diff, J
 
+        is_equality = True
         super(PoseConstraint, self).__init__(
-                fun, n_state, m_constraint, True, with_check=True)
+                fun, n_state, m_constraint, is_equality, name, with_check=True)
 
 class CollisionConstraint(Constraint):
-    def __init__(self, mechanism, static_sdf, with_base=False):
+    def __init__(self, mechanism, static_sdf, with_base=False, name=None):
+        if name is None:
+            name = "coll_cstr-{0}".format(str(uuid.uuid1()))
+
         n_state = mechanism.dof + with_base * 3
         m_constraint = len(mechanism.sphere_ids)
 
@@ -137,15 +151,12 @@ class CollisionConstraint(Constraint):
             # J_reshape : (m_constraint, 3, n_state)
             jac_whole = np.einsum('ij,ijk->ik', sd_jac, J_reshape)
 
-            print("debug col======")
-            print(sd_vals0)
-            print(mechanism.radius_list)
             sd_vals_sphere = sd_vals0 - np.array(mechanism.radius_list)
             return sd_vals_sphere, jac_whole
 
         is_equality = False
         super(CollisionConstraint, self).__init__(
-                fun, n_state, m_constraint, is_equality, with_check=True)
+                fun, n_state, m_constraint, is_equality, name, with_check=True)
 
 class Attractor(object):
     def __init__(self, objective_function, ineq_constraint):
